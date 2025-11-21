@@ -456,40 +456,72 @@ elif menu == "⚡ Olay & Alarm":
             st.dataframe(pd.read_sql("SELECT * FROM ALARM ORDER BY Numara DESC", conn), use_container_width=True, hide_index=True)
 
 # =============================================================================
-# MODÜL 5: ANALİTİK RAPORLAR (YENİ EKLENDİ)
+# MODÜL 5: ANALİTİK RAPORLAR (GÜNCELLENDİ)
 # =============================================================================
 elif menu == "📈 Analitik Raporlar":
-    st.title("📈 Gelişmiş Veri Analizi")
+    st.title("📈 Gelişmiş Veri Analizi ve SQL Raporları")
     
-    c1, c2 = st.columns(2)
+    # --- RAPOR 1: OLAY - CİHAZ - EV İLİŞKİSİ (YENİ EKLENDİ) ---
+    st.markdown('<div class="report-card">⚡ <b>RAPOR 1: Olay - Cihaz - Ev İlişkisi Analizi</b></div>', unsafe_allow_html=True)
+    st.caption("Sistemde kaydedilen olayların mekânsal ve donanımsal kökenini uçtan uca takip eder. (5 Tablolu JOIN İşlemi)")
     
-    with c1:
-        st.markdown('<div class="report-card">📊 <b>Alarm Analizi</b></div>', unsafe_allow_html=True)
-        st.caption("Hangi alarmın, hangi olay tarafından tetiklendiğini gösterir (JOIN Query).")
-        q2 = """
-        SELECT A.Numara AS AlarmID, A.Durum, O.Turu AS Tetikleyen_Olay, O.Tarih
-        FROM ALARM A
-        JOIN TETIKLER T ON A.Numara = T.AlarmNumara
-        JOIN OLAY O ON T.OlayNumara = O.Numara
-        """
-        try:
-            st.dataframe(pd.read_sql(q2, conn), use_container_width=True, hide_index=True)
-        except:
-            st.info("Veri yok.")
+    # SQLite uyumlu standart SQL formatı (Access parantezleri temizlendi)
+    query_1 = """
+    SELECT 
+        O.Tarih, 
+        O.Saat, 
+        O.Turu AS Olay_Turu, 
+        C.Turu AS Cihaz, 
+        E.Adres
+    FROM KAYDEDER K 
+    JOIN OLAY O ON K.OlayNumara = O.Numara 
+    JOIN GUVENLIK_CIHAZI C ON K.GuvenlikCihaziNumara = C.Numara 
+    JOIN VARDIR V ON C.Numara = V.GuvenlikCihaziNumara 
+    JOIN AKILLI_EV E ON V.AkilliEvNumara = E.Numara
+    ORDER BY O.Tarih DESC
+    """
+    try:
+        df_q1 = pd.read_sql(query_1, conn)
+        st.dataframe(df_q1, use_container_width=True)
+    except Exception as e:
+        st.error(f"Hata: {e}")
+        st.info("Veri yok veya bağlantı hatası.")
 
-    with c2:
-        st.markdown('<div class="report-card">🏠 <b>Ev Envanteri</b></div>', unsafe_allow_html=True)
-        st.caption("Her evdeki toplam güvenlik cihazı sayısı (GROUP BY & COUNT).")
-        q3 = """
-        SELECT E.Adres, COUNT(V.GuvenlikCihaziNumara) AS Toplam_Cihaz 
-        FROM AKILLI_EV E 
-        LEFT JOIN VARDIR V ON E.Numara = V.AkilliEvNumara
-        GROUP BY E.Numara, E.Adres
-        """
-        try:
-            st.dataframe(pd.read_sql(q3, conn), use_container_width=True, hide_index=True)
-        except:
-            st.info("Veri yok.")
+    st.markdown("---")
+
+    # --- RAPOR 2: ALARM ANALİZİ ---
+    st.markdown('<div class="report-card">📊 <b>RAPOR 2: Alarm ve Tetikleyici Olay Analizi</b></div>', unsafe_allow_html=True)
+    st.caption("Hangi alarmın, hangi olay tarafından tetiklendiğini gösterir. (ALARM -> TETIKLER -> OLAY)")
+    
+    query_2 = """
+    SELECT A.Numara AS AlarmID, A.Durum, O.Turu AS Tetikleyen_Olay, O.Tarih
+    FROM ALARM A
+    JOIN TETIKLER T ON A.Numara = T.AlarmNumara
+    JOIN OLAY O ON T.OlayNumara = O.Numara
+    """
+    try:
+        df_q2 = pd.read_sql(query_2, conn)
+        st.dataframe(df_q2, use_container_width=True)
+    except:
+        st.info("Veri yok.")
+
+    st.markdown("---")
+
+    # --- RAPOR 3: EV ENVANTERİ ---
+    st.markdown('<div class="report-card">🏠 <b>RAPOR 3: Ev Başına Cihaz İstatistiği</b></div>', unsafe_allow_html=True)
+    st.caption("Her evdeki toplam güvenlik cihazı sayısı. (GROUP BY & COUNT)")
+    
+    query_3 = """
+    SELECT E.Adres, COUNT(V.GuvenlikCihaziNumara) AS Toplam_Cihaz 
+    FROM AKILLI_EV E 
+    LEFT JOIN VARDIR V ON E.Numara = V.AkilliEvNumara
+    GROUP BY E.Numara, E.Adres
+    """
+    try:
+        df_q3 = pd.read_sql(query_3, conn)
+        st.dataframe(df_q3, use_container_width=True)
+    except:
+        st.info("Veri yok.")
 
 # =============================================================================
 # MODÜL 6: KAYITLAR
@@ -508,3 +540,4 @@ elif menu == "📂 Veritabanı Kayıtları":
         st.error("Tablo okunamadı.")
 
 conn.close()
+
