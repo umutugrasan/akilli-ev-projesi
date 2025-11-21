@@ -111,11 +111,11 @@ if menu == "📊 Dashboard":
         st.info("Henüz veri akışı yok.")
 
 # =============================================================================
-# MODÜL 1: EV & KULLANICI (SEARCH EKLENDİ)
+# MODÜL 1: EV & KULLANICI (E-POSTA EKLENDİ)
 # =============================================================================
 elif menu == "🏠 Ev & Kullanıcı":
     st.title("🏠 Mülk ve Kullanıcı Yönetimi")
-    tab_ev, tab_user = st.tabs(["🏠 Ev İşlemleri", "👤 Kullanıcı İşlemleri"])
+    tab_ev, tab_user = st.tabs(["🏠 Ev İşlemleri", "👤 Kullanıcı & E-Posta İşlemleri"])
 
     # --- TAB 1: EV ---
     with tab_ev:
@@ -180,14 +180,15 @@ elif menu == "🏠 Ev & Kullanıcı":
                             time.sleep(0.5)
                             st.rerun()
 
-    # --- TAB 2: KULLANICI ---
+    # --- TAB 2: KULLANICI & E-POSTA (GÜNCELLENDİ) ---
     with tab_user:
+        # ÜST KISIM: KULLANICI EKLEME VE SİLME
         c1, c2 = st.columns([1, 2])
         evler = c.execute("SELECT Numara, Adres FROM AKILLI_EV").fetchall()
         ev_dict = {f"Ev No: {e[0]}": e[0] for e in evler}
 
         with c1:
-            st.subheader("Kullanıcı Ekle")
+            st.markdown("#### 👤 Kullanıcı Ekle")
             with st.form("add_user", clear_on_submit=True):
                 u_id = st.number_input("TC Kimlik No", min_value=1)
                 u_ad = st.text_input("Ad")
@@ -208,17 +209,12 @@ elif menu == "🏠 Ev & Kullanıcı":
                         st.warning("Önce ev ekleyin.")
 
         with c2:
-            st.subheader("Kullanıcı Listesi & Arama")
-            
-            # SEARCH BAR
+            st.markdown("#### 📋 Kullanıcı Listesi & Arama")
             search_user = st.text_input("🔍 Kullanıcı Ara", placeholder="Ad veya Soyad...")
-            
             q_user = "SELECT * FROM KULLANICI"
             df_user = pd.read_sql(q_user, conn)
-            
             if search_user:
                 df_user = df_user[df_user['Adi'].str.contains(search_user, case=False) | df_user['Soyadi'].str.contains(search_user, case=False)]
-            
             st.dataframe(df_user, use_container_width=True, hide_index=True)
 
             with st.expander("🗑️ Kullanıcı Sil"):
@@ -233,8 +229,44 @@ elif menu == "🏠 Ev & Kullanıcı":
                         time.sleep(0.5)
                         st.rerun()
 
+        # --- ALT KISIM: E-POSTA YÖNETİMİ (YENİ EKLENDİ) ---
+        st.divider()
+        st.subheader("✉️ E-Posta Yönetimi (Çok Değerli Nitelik)")
+        
+        ce1, ce2 = st.columns(2)
+        
+        with ce1:
+            st.info("Bir kullanıcının birden fazla e-postası olabilir. Buradan ekleyebilirsiniz.")
+            users_mail = c.execute("SELECT KimlikNo, Adi, Soyadi FROM KULLANICI").fetchall()
+            if users_mail:
+                u_mail_dict = {f"{u[1]} {u[2]} (ID:{u[0]})": u[0] for u in users_mail}
+                sel_user_mail = st.selectbox("Kullanıcı Seçin", list(u_mail_dict.keys()), key="sel_u_mail")
+                new_email = st.text_input("E-Posta Adresi Girin")
+                
+                if st.button("E-Postayı Ekle", key="btn_add_mail"):
+                    if new_email:
+                        try:
+                            c.execute("INSERT INTO KULLANICI_EPOSTA VALUES (?,?)", (u_mail_dict[sel_user_mail], new_email))
+                            conn.commit()
+                            st.toast("E-posta eklendi!", icon="📧")
+                            time.sleep(0.5)
+                            st.rerun()
+                        except:
+                            st.error("Bu e-posta zaten kayıtlı.")
+                    else:
+                        st.warning("Lütfen e-posta yazın.")
+            else:
+                st.warning("Kullanıcı yok.")
+
+        with ce2:
+            if users_mail:
+                sel_id_mail = u_mail_dict[sel_user_mail]
+                st.markdown(f"**{sel_user_mail}** kişisine ait e-postalar:")
+                df_mail = pd.read_sql(f"SELECT * FROM KULLANICI_EPOSTA WHERE KullaniciKimlikNo={sel_id_mail}", conn)
+                st.dataframe(df_mail, use_container_width=True, hide_index=True)
+
 # =============================================================================
-# MODÜL 2: CİHAZ YÖNETİMİ (SEARCH EKLENDİ)
+# MODÜL 2: CİHAZ YÖNETİMİ
 # =============================================================================
 elif menu == "📹 Cihaz Yönetimi":
     st.title("📹 Cihaz Envanter & Yönetimi")
@@ -319,7 +351,7 @@ elif menu == "📹 Cihaz Yönetimi":
                     st.rerun()
 
 # =============================================================================
-# MODÜL 3: OLAY & ALARM (SEARCH EKLENDİ)
+# MODÜL 3: OLAY & ALARM
 # =============================================================================
 elif menu == "⚡ Olay & Alarm":
     st.title("⚡ Güvenlik Olayları ve Alarmlar")
