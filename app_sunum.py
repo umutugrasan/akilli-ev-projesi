@@ -10,23 +10,68 @@ def get_connection():
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
-# --- VERİ YÜKLEME VE SİLME FONKSİYONLARI ---
+# --- VERİ İŞLEMLERİ (YÜKLEME / SİLME) ---
 def reset_and_populate_data():
     conn = get_connection()
     c = conn.cursor()
     tables = ['TETIKLER', 'KAYDEDER', 'VARDIR', 'KULLANICI_EPOSTA', 'ALARM', 'OLAY', 'GUVENLIK_CIHAZI', 'KULLANICI', 'AKILLI_EV']
     for table in tables: c.execute(f"DELETE FROM {table}")
     
-    # Veriler (Access ile senkronize)
-    c.executemany("INSERT INTO AKILLI_EV VALUES (?,?,?)", [(12, 'Kızıltoprak Sk. No:15 Bandırma/Balıkesir', 'Yunus Özdemir'), (25, 'Atatürk Cad. No:78 İstanbul/Kadıköy', 'Süleyman Emre Arlı'), (38, 'İnönü Bulvarı No:142 Ankara/Çankaya', 'Ömer Faruk Külçeler')])
-    c.executemany("INSERT INTO KULLANICI VALUES (?,?,?,?)", [(101, 'Umut', 'Uğraşan', 12), (102, 'Mehmet', 'Yılmaz', 25), (103, 'Ayşe', 'Kara', 38), (104, 'Veli', 'Demir', 12)])
-    c.executemany("INSERT INTO KULLANICI_EPOSTA VALUES (?,?)", [(101, 'umut@mail.com'), (102, 'mehmet.yilmaz@gmail.com'), (103, 'ayse.kara@outlook.com'), (104, 'veli.demir@yahoo.com')])
-    c.executemany("INSERT INTO GUVENLIK_CIHAZI VALUES (?,?,?)", [(7, 'Kamera', 'Aktif'), (8, 'Hareket Sensörü', 'İnaktif'), (9, 'Kapı Kilidi', 'İnaktif'), (10, 'Duman Dedektörü', 'Aktif'), (11, 'Cam Kırılma Sensörü', 'Aktif')])
-    c.executemany("INSERT INTO VARDIR VALUES (?,?)", [(12, 7), (12, 8), (25, 9), (25, 10)])
-    c.executemany("INSERT INTO OLAY VALUES (?,?,?,?)", [(4096, 'Hareket Algılandı', '2025-11-02', '19:29:42'), (4097, 'Kapı Açıldı', '2025-11-03', '08:15:20'), (4098, 'Duman Tespit Edildi', '2025-11-05', '14:45:10'), (4099, 'Cam Kırılması Algılandı', '2025-11-07', '02:30:55')])
-    c.executemany("INSERT INTO KAYDEDER VALUES (?,?)", [(7, 4096), (8, 4096), (9, 4097), (10, 4098), (11, 4099)])
-    c.executemany("INSERT INTO ALARM VALUES (?,?,?,?)", [(6071, 'Kapalı', '2025-11-02', '19:29:48'), (6072, 'Kapalı', '2025-11-03', '08:15:25'), (6073, 'Açık', '2025-11-05', '14:45:15'), (6074, 'Açık', '2025-11-07', '02:31:00')])
-    c.executemany("INSERT INTO TETIKLER VALUES (?,?)", [(4098, 6073), (4099, 6074)])
+    # 1. EVLER
+    c.executemany("INSERT INTO AKILLI_EV VALUES (?,?,?)", [
+        (12, 'Kızıltoprak Sk. No:15 Bandırma/Balıkesir', 'Yunus Özdemir'), 
+        (25, 'Atatürk Cad. No:78 İstanbul/Kadıköy', 'Süleyman Emre Arlı'), 
+        (38, 'İnönü Bulvarı No:142 Ankara/Çankaya', 'Ömer Faruk Külçeler')
+    ])
+
+    # 2. KULLANICILAR
+    c.executemany("INSERT INTO KULLANICI VALUES (?,?,?,?)", [
+        (101, 'Umut', 'Uğraşan', 12), (102, 'Mehmet', 'Yılmaz', 25), 
+        (103, 'Ayşe', 'Kara', 38), (104, 'Veli', 'Demir', 12)
+    ])
+
+    # 3. EPOSTALAR
+    c.executemany("INSERT INTO KULLANICI_EPOSTA VALUES (?,?)", [
+        (101, 'umut@mail.com'), (102, 'mehmet.yilmaz@gmail.com'), 
+        (103, 'ayse.kara@outlook.com'), (104, 'veli.demir@yahoo.com')
+    ])
+
+    # 4. CİHAZLAR
+    c.executemany("INSERT INTO GUVENLIK_CIHAZI VALUES (?,?,?)", [
+        (7, 'Kamera', 'Aktif'), (8, 'Hareket Sensörü', 'İnaktif'), 
+        (9, 'Kapı Kilidi', 'İnaktif'), (10, 'Duman Dedektörü', 'Aktif'), 
+        (11, 'Cam Kırılma Sensörü', 'Aktif')
+    ])
+
+    # 5. VARDIR (EKSİK BURADAYDI: Cihaz 11 bir eve bağlı değildi!)
+    # DÜZELTME: Cihaz 11'i (Cam Kırılma) Ev 38'e bağladık.
+    c.executemany("INSERT INTO VARDIR VALUES (?,?)", [
+        (12, 7), (12, 8), (25, 9), (25, 10), (38, 11) 
+    ])
+
+    # 6. OLAYLAR
+    c.executemany("INSERT INTO OLAY VALUES (?,?,?,?)", [
+        (4096, 'Hareket Algılandı', '2025-11-02', '19:29:42'), 
+        (4097, 'Kapı Açıldı', '2025-11-03', '08:15:20'), 
+        (4098, 'Duman Tespit Edildi', '2025-11-05', '14:45:10'), 
+        (4099, 'Cam Kırılması Algılandı', '2025-11-07', '02:30:55')
+    ])
+
+    # 7. KAYDEDER
+    c.executemany("INSERT INTO KAYDEDER VALUES (?,?)", [
+        (7, 4096), (8, 4096), (9, 4097), (10, 4098), (11, 4099)
+    ])
+
+    # 8. ALARMLAR
+    c.executemany("INSERT INTO ALARM VALUES (?,?,?,?)", [
+        (6071, 'Kapalı', '2025-11-02', '19:29:48'), (6072, 'Kapalı', '2025-11-03', '08:15:25'), 
+        (6073, 'Açık', '2025-11-05', '14:45:15'), (6074, 'Açık', '2025-11-07', '02:31:00')
+    ])
+
+    # 9. TETIKLER
+    c.executemany("INSERT INTO TETIKLER VALUES (?,?)", [
+        (4098, 6073), (4099, 6074)
+    ])
     
     conn.commit()
     conn.close()
@@ -503,3 +548,4 @@ elif menu == "📂 Veritabanı Kayıtları":
     except: st.error("Tablo okunamadı.")
 
 conn.close()
+
