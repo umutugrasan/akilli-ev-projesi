@@ -10,6 +10,85 @@ def get_connection():
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
+# --- VERİ YÜKLEME FONKSİYONU (RAPOR VERİLERİ) ---
+def reset_and_populate_data():
+    conn = get_connection()
+    c = conn.cursor()
+    
+    # Önce temizle
+    tables = ['TETIKLER', 'KAYDEDER', 'VARDIR', 'KULLANICI_EPOSTA', 'ALARM', 'OLAY', 'GUVENLIK_CIHAZI', 'KULLANICI', 'AKILLI_EV']
+    for table in tables:
+        c.execute(f"DELETE FROM {table}")
+        
+    # 1. EVLER
+    evler = [
+        (12, 'Kızıltoprak Sk. No:15 Bandırma/Balıkesir', 'Yunus Özdemir'),
+        (25, 'Atatürk Cad. No:78 İstanbul/Kadıköy', 'Süleyman Emre Arlı'),
+        (38, 'İnönü Bulvarı No:142 Ankara/Çankaya', 'Ömer Faruk Külçeler')
+    ]
+    c.executemany("INSERT INTO AKILLI_EV VALUES (?,?,?)", evler)
+
+    # 2. KULLANICILAR
+    kullanicilar = [
+        (101, 'Umut', 'Uğraşan', 12),
+        (102, 'Mehmet', 'Yılmaz', 25),
+        (103, 'Ayşe', 'Kara', 38),
+        (104, 'Veli', 'Demir', 12)
+    ]
+    c.executemany("INSERT INTO KULLANICI VALUES (?,?,?,?)", kullanicilar)
+
+    # 3. EPOSTALAR
+    epostalar = [
+        (101, 'umut@mail.com'),
+        (102, 'mehmet.yilmaz@gmail.com'),
+        (103, 'ayse.kara@outlook.com'),
+        (104, 'veli.demir@yahoo.com')
+    ]
+    c.executemany("INSERT INTO KULLANICI_EPOSTA VALUES (?,?)", epostalar)
+
+    # 4. CİHAZLAR
+    cihazlar = [
+        (7, 'Kamera', 'Aktif'),
+        (8, 'Hareket Sensörü', 'İnaktif'),
+        (9, 'Kapı Kilidi', 'İnaktif'),
+        (10, 'Duman Dedektörü', 'Aktif'),
+        (11, 'Cam Kırılma Sensörü', 'Aktif')
+    ]
+    c.executemany("INSERT INTO GUVENLIK_CIHAZI VALUES (?,?,?)", cihazlar)
+
+    # 5. VARDIR
+    vardir_data = [(12, 7), (12, 8), (25, 9), (25, 10)]
+    c.executemany("INSERT INTO VARDIR VALUES (?,?)", vardir_data)
+
+    # 6. OLAYLAR
+    olaylar = [
+        (4096, 'Hareket Algılandı', '2025-11-02', '19:29:42'),
+        (4097, 'Kapı Açıldı', '2025-11-03', '08:15:20'),
+        (4098, 'Duman Tespit Edildi', '2025-11-05', '14:45:10'),
+        (4099, 'Cam Kırılması Algılandı', '2025-11-07', '02:30:55')
+    ]
+    c.executemany("INSERT INTO OLAY VALUES (?,?,?,?)", olaylar)
+
+    # 7. KAYDEDER
+    kaydeder_data = [(7, 4096), (8, 4096), (9, 4097), (10, 4098), (11, 4099)]
+    c.executemany("INSERT INTO KAYDEDER VALUES (?,?)", kaydeder_data)
+
+    # 8. ALARMLAR
+    alarmlar = [
+        (6071, 'Kapalı', '2025-11-02', '19:29:48'),
+        (6072, 'Kapalı', '2025-11-03', '08:15:25'),
+        (6073, 'Açık', '2025-11-05', '14:45:15'),
+        (6074, 'Açık', '2025-11-07', '02:31:00')
+    ]
+    c.executemany("INSERT INTO ALARM VALUES (?,?,?,?)", alarmlar)
+
+    # 9. TETIKLER
+    tetikler_data = [(4098, 6073), (4099, 6074)]
+    c.executemany("INSERT INTO TETIKLER VALUES (?,?)", tetikler_data)
+
+    conn.commit()
+    conn.close()
+
 # --- 2. SAYFA YAPILANDIRMASI & PREMIUM TASARIM ---
 st.set_page_config(page_title="SmartHome Admin", page_icon="🛡️", layout="wide")
 
@@ -60,23 +139,37 @@ c = conn.cursor()
 
 # --- YAN MENÜ ---
 with st.sidebar:
-    st.title("🛡️ ADMIN PANEL")
-    st.caption("Smart Home Security System v2.0")
+    st.image("https://cdn-icons-png.flaticon.com/512/900/900782.png", width=80)
+    st.title("🗄️ DB Sunum Paneli")
     st.markdown("---")
+    
+    # --- VERİ YÜKLEME BUTONU (YENİ) ---
+    if st.button("🔄 Rapor Verilerini Yükle (Reset)", type="primary"):
+        try:
+            reset_and_populate_data()
+            st.toast("Veritabanı Access verileriyle sıfırlandı!", icon="✅")
+            time.sleep(1)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Hata: {e}")
+    
+    st.markdown("---")
+    
     menu = st.radio("NAVİGASYON", 
-        ["📊 Dashboard",
-         "🏠 Ev & Kullanıcı", 
-         "📹 Cihaz Yönetimi", 
-         "⚡ Olay & Alarm", 
-         "📈 Analitik Raporlar",
-         "📂 Veritabanı Kayıtları"])
+        ["📊 Dashboard (Özet)",
+         "1. AKILLI_EV & KULLANICI", 
+         "2. CİHAZ & VARDIR (M:N)", 
+         "3. OLAY & KAYDEDER (M:N)", 
+         "4. ALARM & TETİKLER (M:N)",
+         "5. TÜM TABLOLARI İNCELE",
+         "6. DETAYLI SQL RAPORLARI"])
     st.markdown("---")
-    st.info("🟢 Sistem Durumu: **Aktif**")
+    st.caption("Veritabanı Yönetim Sistemleri Dersi Projesi")
 
 # =============================================================================
 # MODÜL 0: DASHBOARD
 # =============================================================================
-if menu == "📊 Dashboard":
+if menu == "📊 Dashboard (Özet)":
     st.title("📊 Sistem Genel Bakış")
     
     try:
@@ -111,11 +204,11 @@ if menu == "📊 Dashboard":
         st.info("Henüz veri akışı yok.")
 
 # =============================================================================
-# MODÜL 1: EV & KULLANICI (E-POSTA EKLENDİ)
+# MODÜL 1: EV & KULLANICI (SEARCH EKLENDİ)
 # =============================================================================
-elif menu == "🏠 Ev & Kullanıcı":
+elif menu == "1. AKILLI_EV & KULLANICI":
     st.title("🏠 Mülk ve Kullanıcı Yönetimi")
-    tab_ev, tab_user = st.tabs(["🏠 Ev İşlemleri", "👤 Kullanıcı & E-Posta İşlemleri"])
+    tab_ev, tab_user = st.tabs(["🏠 Ev İşlemleri", "👤 Kullanıcı İşlemleri"])
 
     # --- TAB 1: EV ---
     with tab_ev:
@@ -180,9 +273,8 @@ elif menu == "🏠 Ev & Kullanıcı":
                             time.sleep(0.5)
                             st.rerun()
 
-    # --- TAB 2: KULLANICI & E-POSTA (GÜNCELLENDİ) ---
+    # --- TAB 2: KULLANICI ---
     with tab_user:
-        # ÜST KISIM: KULLANICI EKLEME VE SİLME
         c1, c2 = st.columns([1, 2])
         evler = c.execute("SELECT Numara, Adres FROM AKILLI_EV").fetchall()
         ev_dict = {f"Ev No: {e[0]}": e[0] for e in evler}
@@ -229,7 +321,7 @@ elif menu == "🏠 Ev & Kullanıcı":
                         time.sleep(0.5)
                         st.rerun()
 
-        # --- ALT KISIM: E-POSTA YÖNETİMİ (YENİ EKLENDİ) ---
+        # --- ALT KISIM: E-POSTA YÖNETİMİ ---
         st.divider()
         st.subheader("✉️ E-Posta Yönetimi (Çok Değerli Nitelik)")
         
@@ -266,7 +358,7 @@ elif menu == "🏠 Ev & Kullanıcı":
                 st.dataframe(df_mail, use_container_width=True, hide_index=True)
 
 # =============================================================================
-# MODÜL 2: CİHAZ YÖNETİMİ
+# MODÜL 2: CİHAZ YÖNETİMİ (SEARCH EKLENDİ)
 # =============================================================================
 elif menu == "📹 Cihaz Yönetimi":
     st.title("📹 Cihaz Envanter & Yönetimi")
@@ -278,7 +370,7 @@ elif menu == "📹 Cihaz Yönetimi":
         with c1:
             with st.form("add_dev", clear_on_submit=True):
                 d_no = st.number_input("Cihaz Seri No", min_value=1)
-                d_tur = st.selectbox("Cihaz Türü", ["Kamera", "Hareket Sensörü", "Akıllı Kilit", "Duman Dedektörü"])
+                d_tur = st.selectbox("Cihaz Türü", ["Kamera", "Hareket Sensörü", "Akıllı Kilit", "Duman Dedektörü", "Cam Kırılma Sensörü"])
                 d_dur = st.selectbox("Başlangıç Durumu", ["Aktif", "İnaktif"])
                 if st.form_submit_button("Envantere Ekle"):
                     try:
@@ -351,7 +443,7 @@ elif menu == "📹 Cihaz Yönetimi":
                     st.rerun()
 
 # =============================================================================
-# MODÜL 3: OLAY & ALARM
+# MODÜL 3: OLAY & ALARM (SEARCH EKLENDİ)
 # =============================================================================
 elif menu == "⚡ Olay & Alarm":
     st.title("⚡ Güvenlik Olayları ve Alarmlar")
@@ -362,7 +454,7 @@ elif menu == "⚡ Olay & Alarm":
         with c1:
             st.markdown("##### Olay Kaydet")
             with st.form("add_olay"):
-                o_no = st.number_input("Olay ID", min_value=5000)
+                o_no = st.number_input("Olay ID", min_value=4000)
                 o_tur = st.text_input("Olay Tipi", "Hareket Algılandı")
                 if st.form_submit_button("Olayı Oluştur"):
                     now = datetime.now()
@@ -416,7 +508,7 @@ elif menu == "⚡ Olay & Alarm":
         with c1:
             st.markdown("##### Alarm Oluştur")
             with st.form("add_alarm"):
-                a_no = st.number_input("Alarm ID", min_value=9000)
+                a_no = st.number_input("Alarm ID", min_value=6000)
                 if st.form_submit_button("Alarm Başlat"):
                     now = datetime.now()
                     try:
