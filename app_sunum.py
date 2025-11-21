@@ -456,12 +456,12 @@ elif menu == "⚡ Olay & Alarm":
             st.dataframe(pd.read_sql("SELECT * FROM ALARM ORDER BY Numara DESC", conn), use_container_width=True, hide_index=True)
 
 # =============================================================================
-# MODÜL 5: ANALİTİK RAPORLAR (GÜNCELLENDİ)
+# MODÜL 5: ANALİTİK RAPORLAR 
 # =============================================================================
 elif menu == "📈 Analitik Raporlar":
-    st.title("📈 Gelişmiş Veri Analizi ve SQL Raporları")
+    st.title("📈 Gelişmiş Veri Analizi ve Karmaşık SQL Sorgu Raporları")
     
-    # --- RAPOR 1: OLAY - CİHAZ - EV İLİŞKİSİ (YENİ EKLENDİ) ---
+    # --- RAPOR 1: OLAY - CİHAZ - EV İLİŞKİSİ  ---
     st.markdown('<div class="report-card">⚡ <b>RAPOR 1: Olay - Cihaz - Ev İlişkisi Analizi</b></div>', unsafe_allow_html=True)
     st.caption("Sistemde kaydedilen olayların mekânsal ve donanımsal kökenini uçtan uca takip eder. (5 Tablolu JOIN İşlemi)")
     
@@ -540,4 +540,5 @@ elif menu == "📂 Veritabanı Kayıtları":
         st.error("Tablo okunamadı.")
 
 conn.close()
+
 
