@@ -10,11 +10,12 @@ def get_connection():
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
-# --- VERİ YÜKLEME FONKSİYONU (RESET) ---
-def reset_and_populate_data():
+# --- VERİ YÜKLEME FONKSİYONU (DOLU) ---
+def populate_data():
     conn = get_connection()
     c = conn.cursor()
     
+    # Önce temizle
     tables = ['TETIKLER', 'KAYDEDER', 'VARDIR', 'KULLANICI_EPOSTA', 'ALARM', 'OLAY', 'GUVENLIK_CIHAZI', 'KULLANICI', 'AKILLI_EV']
     for table in tables:
         c.execute(f"DELETE FROM {table}")
@@ -88,10 +89,21 @@ def reset_and_populate_data():
     conn.commit()
     conn.close()
 
+# --- VERİ SİLME FONKSİYONU (BOŞ) ---
+def clear_all_data():
+    conn = get_connection()
+    c = conn.cursor()
+    # Sıralama önemli (Foreign Key hatası almamak için)
+    tables = ['TETIKLER', 'KAYDEDER', 'VARDIR', 'KULLANICI_EPOSTA', 'ALARM', 'OLAY', 'GUVENLIK_CIHAZI', 'KULLANICI', 'AKILLI_EV']
+    for table in tables:
+        c.execute(f"DELETE FROM {table}")
+    conn.commit()
+    conn.close()
+
 # --- 2. SAYFA YAPILANDIRMASI & PREMIUM TASARIM ---
 st.set_page_config(page_title="SmartHome Admin", page_icon="🛡️", layout="wide")
 
-# MODERN CSS ENJEKSİYONU (DÜZELTİLDİ)
+# MODERN CSS ENJEKSİYONU
 st.markdown("""
 <style>
     /* Ana Arka Plan */
@@ -160,29 +172,45 @@ c = conn.cursor()
 # --- YAN MENÜ (SIDEBAR) ---
 with st.sidebar:
     st.title("🛡️ ADMIN PANEL")
-    st.caption("v2.0.5 Final")
+    st.caption("v2.1 Final Release")
     st.markdown("---")
     
-    # RESET BUTONU
-    if st.button("🔄 Rapor Verilerini Yükle", type="primary", use_container_width=True):
-        try:
-            reset_and_populate_data()
-            st.toast("Veriler sıfırlandı ve yüklendi!", icon="✅")
-            time.sleep(1)
-            st.rerun()
-        except Exception as e:
-            st.error(f"Hata: {e}")
+    st.markdown("**🛠️ Veri Araçları**")
+    
+    # Butonları yan yana koyalım
+    col_l, col_c = st.columns(2)
+    
+    with col_l:
+        if st.button("📥 Yükle", help="Rapor verilerini yükler"):
+            try:
+                populate_data()
+                st.toast("Veriler Yüklendi!", icon="✅")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Hata: {e}")
+                
+    with col_c:
+        if st.button("🗑️ Sıfırla", help="Tüm verileri siler"):
+            try:
+                clear_all_data()
+                st.toast("Veritabanı Temizlendi!", icon="🧹")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Hata: {e}")
             
     st.markdown("---")
     
     # MENÜ SEÇİMİ
     menu = st.radio("NAVİGASYON", 
-        ["📊 Dashboard",
-         "🏠 Ev & Kullanıcı", 
-         "📹 Cihaz Yönetimi", 
-         "⚡ Olay & Alarm", 
-         "📈 Analitik Raporlar",
-         "📂 Veritabanı Kayıtları"])
+        ["📊 Dashboard (Özet)",
+         "1. AKILLI_EV & KULLANICI", 
+         "2. CİHAZ & VARDIR (M:N)", 
+         "3. OLAY & KAYDEDER (M:N)", 
+         "4. ALARM & TETİKLER (M:N)",
+         "5. TÜM TABLOLARI İNCELE",
+         "6. DETAYLI SQL RAPORLARI"])
          
     st.markdown("---")
     st.info("🟢 Sistem: **Online**")
@@ -190,7 +218,7 @@ with st.sidebar:
 # =============================================================================
 # MODÜL 0: DASHBOARD
 # =============================================================================
-if menu == "📊 Dashboard":
+if menu == "📊 Dashboard (Özet)":
     st.title("📊 Sistem Genel Bakış")
     
     try:
@@ -227,7 +255,7 @@ if menu == "📊 Dashboard":
 # =============================================================================
 # MODÜL 1: EV & KULLANICI
 # =============================================================================
-elif menu == "🏠 Ev & Kullanıcı":
+elif menu == "1. AKILLI_EV & KULLANICI":
     st.title("🏠 Mülk ve Kullanıcı Yönetimi")
     
     tab_ev, tab_user = st.tabs(["🏠 Ev İşlemleri", "👤 Kullanıcı & E-Posta"])
@@ -344,6 +372,7 @@ elif menu == "🏠 Ev & Kullanıcı":
         col_em1, col_em2 = st.columns(2)
         
         with col_em1:
+            st.info("Bir kullanıcının birden fazla e-postası olabilir. Buradan ekleyebilirsiniz.")
             users_mail = c.execute("SELECT KimlikNo, Adi, Soyadi FROM KULLANICI").fetchall()
             if users_mail:
                 u_m_d = {f"{u[1]} {u[2]}": u[0] for u in users_mail}
@@ -448,145 +477,162 @@ elif menu == "📹 Cihaz Yönetimi":
 # =============================================================================
 elif menu == "⚡ Olay & Alarm":
     st.title("⚡ Olay ve Alarm Yönetimi")
-    t1, t2 = st.tabs(["⚡ Olaylar", "🚨 Alarmlar"])
-
+    t1, t2 = st.tabs(["⚡ Olay Yönetimi", "🚨 Alarm Yönetimi"])
+    
     with t1:
         c1, c2 = st.columns([1, 2])
         with c1:
-            st.markdown("##### Olay Ekle")
+            st.markdown("##### Olay Kaydet")
             with st.form("add_olay"):
-                o_id = st.number_input("Olay ID", min_value=4000)
-                o_typ = st.text_input("Tür", "Hareket Algılandı")
-                if st.form_submit_button("Ekle"):
+                o_no = st.number_input("Olay ID", min_value=4000)
+                o_tur = st.text_input("Olay Tipi", "Hareket Algılandı")
+                if st.form_submit_button("Olayı Oluştur"):
                     now = datetime.now()
                     try:
-                        c.execute("INSERT INTO OLAY VALUES (?,?,?,?)", (o_id, o_typ, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S")))
+                        c.execute("INSERT INTO OLAY VALUES (?,?,?,?)", (o_no, o_tur, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S")))
                         conn.commit()
-                        st.success("Eklendi")
+                        st.toast("Olay kaydedildi!", icon="⚡")
+                        time.sleep(0.5)
+                        st.rerun()
                     except:
-                        st.error("Hata")
+                        st.error("Hata.")
             
-            st.markdown("##### Sil")
+            st.markdown("##### 🗑️ Olay Sil")
             olays = c.execute("SELECT Numara, Turu FROM OLAY").fetchall()
             if olays:
-                o_d = {f"{o[1]} (ID:{o[0]})": o[0] for o in olays}
-                s_o = st.selectbox("Silinecek Olay", list(o_d.keys()))
-                if st.button("Olayı Sil"):
-                    c.execute("DELETE FROM OLAY WHERE Numara=?", (o_d[s_o],))
+                o_dict = {f"{o[1]} (ID:{o[0]})": o[0] for o in olays}
+                del_o = st.selectbox("Silinecek Olay", list(o_dict.keys()))
+                if st.button("Seçili Olayı Sil"):
+                    c.execute("DELETE FROM OLAY WHERE Numara=?", (o_dict[del_o],))
                     conn.commit()
-                    st.warning("Silindi")
+                    st.toast("Olay silindi.", icon="🗑️")
                     time.sleep(0.5)
                     st.rerun()
 
         with c2:
-            st.markdown("##### Olay Listesi")
-            s_olay = st.text_input("🔍 Ara", placeholder="Tür...")
+            st.markdown("##### Olay Geçmişi & Arama")
+            search_olay = st.text_input("🔍 Olay Ara", placeholder="Olay Tipi...")
             df_olay = pd.read_sql("SELECT * FROM OLAY ORDER BY Numara DESC", conn)
-            if s_olay:
-                df_olay = df_olay[df_olay['Turu'].str.contains(s_olay, case=False)]
+            if search_olay:
+                df_olay = df_olay[df_olay['Turu'].str.contains(search_olay, case=False)]
+            
             st.dataframe(df_olay, use_container_width=True, hide_index=True)
-
+            
             st.divider()
-            st.markdown("##### Cihaza Bağla (KAYDEDER)")
+            st.markdown("##### Olayı Cihaza Bağla (KAYDEDER)")
             devs = c.execute("SELECT Numara, Turu FROM GUVENLIK_CIHAZI").fetchall()
             if olays and devs:
                 d_d = {f"{d[1]} (ID:{d[0]})": d[0] for d in devs}
-                sel_o = st.selectbox("Olay", list(o_d.keys()), key="k_o")
-                sel_d = st.selectbox("Cihaz", list(d_d.keys()), key="k_d")
-                if st.button("İlişkilendir"):
+                s_o = st.selectbox("Olay Seç", list(o_dict.keys()), key="sel_o_kay")
+                s_d = st.selectbox("Kaydeden Cihaz", list(d_d.keys()), key="sel_d_kay")
+                if st.button("İlişkiyi Kaydet"):
                     try:
-                        c.execute("INSERT INTO KAYDEDER VALUES (?,?)", (d_d[sel_d], o_d[sel_o]))
+                        c.execute("INSERT INTO KAYDEDER VALUES (?,?)", (d_d[s_d], o_dict[s_o]))
                         conn.commit()
-                        st.success("Bağlandı")
+                        st.toast("İlişki kuruldu!", icon="✅")
                     except:
-                        st.error("Hata")
+                        st.error("Hata.")
 
-    with t2:
+    with t_alarm:
         c1, c2 = st.columns([1, 2])
         with c1:
-            st.markdown("##### Alarm Ekle")
+            st.markdown("##### Alarm Oluştur")
             with st.form("add_alarm"):
-                a_id = st.number_input("Alarm ID", min_value=6000)
-                if st.form_submit_button("Başlat"):
+                a_no = st.number_input("Alarm ID", min_value=6000)
+                if st.form_submit_button("Alarm Başlat"):
                     now = datetime.now()
                     try:
-                        c.execute("INSERT INTO ALARM VALUES (?,?,?,?)", (a_id, "AÇIK", now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S")))
+                        c.execute("INSERT INTO ALARM VALUES (?,?,?,?)", (a_no, "AÇIK", now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S")))
                         conn.commit()
-                        st.success("Başlatıldı")
+                        st.toast("Alarm başladı!", icon="🚨")
+                        time.sleep(0.5)
+                        st.rerun()
                     except:
-                        st.error("Hata")
-            
-            st.markdown("##### Sil")
-            alarms = c.execute("SELECT Numara FROM ALARM").fetchall()
+                        st.error("Hata.")
+            st.markdown("##### 🗑️ Alarm Sil")
+            alarms = c.execute("SELECT Numara, Durum FROM ALARM").fetchall()
             if alarms:
-                a_d = {f"Alarm ID:{a[0]}": a[0] for a in alarms}
-                s_a = st.selectbox("Silinecek Alarm", list(a_d.keys()))
+                a_dict = {f"Alarm ID:{a[0]} ({a[1]})": a[0] for a in alarms}
+                del_a = st.selectbox("Silinecek Alarm", list(a_dict.keys()))
                 if st.button("Alarmı Sil"):
-                    c.execute("DELETE FROM ALARM WHERE Numara=?", (a_d[s_a],))
+                    c.execute("DELETE FROM ALARM WHERE Numara=?", (a_dict[del_a],))
                     conn.commit()
-                    st.warning("Silindi")
+                    st.toast("Alarm silindi.", icon="🗑️")
                     time.sleep(0.5)
                     st.rerun()
 
         with c2:
             st.markdown("##### Alarm Listesi")
-            st.dataframe(pd.read_sql("SELECT * FROM ALARM ORDER BY Numara DESC", conn), use_container_width=True)
+            st.dataframe(pd.read_sql("SELECT * FROM ALARM ORDER BY Numara DESC", conn), use_container_width=True, hide_index=True)
             
             st.divider()
-            st.markdown("##### Olayla Eşleştir (TETIKLER)")
+            st.markdown("##### Tetikleyen Olayı Seç (TETİKLER)")
             olays = c.execute("SELECT Numara, Turu FROM OLAY").fetchall()
             if alarms and olays:
                 o_d = {f"{o[1]} (ID:{o[0]})": o[0] for o in olays}
-                sel_a = st.selectbox("Alarm", list(a_d.keys()), key="t_a")
-                sel_o = st.selectbox("Tetikleyen", list(o_d.keys()), key="t_o")
-                if st.button("Eşleştir"):
+                s_a = st.selectbox("Hangi Alarm?", list(a_dict.keys()), key="sel_a_tet")
+                s_o = st.selectbox("Tetikleyen Olay", list(o_d.keys()), key="sel_o_tet")
+                if st.button("TETİKLER Tablosuna İşle"):
                     try:
-                        c.execute("INSERT INTO TETIKLER VALUES (?,?)", (o_d[sel_o], a_d[sel_a]))
+                        c.execute("INSERT INTO TETIKLER VALUES (?,?)", (o_d[s_o], a_dict[s_a]))
                         conn.commit()
-                        st.success("Eşleşti")
+                        st.toast("Bağlantı yapıldı!", icon="🔗")
                     except:
-                        st.error("Hata")
+                        st.error("Hata.")
 
 # =============================================================================
 # MODÜL 5: ANALİTİK RAPORLAR
 # =============================================================================
 elif menu == "📈 Analitik Raporlar":
-    st.title("📈 Analitik Raporlar")
+    st.title("📈 Gelişmiş Veri Analizi ve SQL Raporları")
     
-    st.markdown('<div class="report-card">⚡ <b>RAPOR 1: Olay-Cihaz-Ev</b></div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-card">⚡ <b>RAPOR 1: Olay - Cihaz - Ev İlişkisi Analizi</b></div>', unsafe_allow_html=True)
+    st.caption("Sistemde kaydedilen olayların mekânsal ve donanımsal kökenini uçtan uca takip eder. (5 Tablolu JOIN İşlemi)")
     q1 = """
-    SELECT O.Tarih, O.Saat, O.Turu AS Olay, C.Turu AS Cihaz, E.Adres
-    FROM KAYDEDER K JOIN OLAY O ON K.OlayNumara = O.Numara 
+    SELECT O.Tarih, O.Saat, O.Turu AS Olay_Turu, C.Turu AS Cihaz, E.Adres
+    FROM KAYDEDER K 
+    JOIN OLAY O ON K.OlayNumara = O.Numara 
     JOIN GUVENLIK_CIHAZI C ON K.GuvenlikCihaziNumara = C.Numara 
     JOIN VARDIR V ON C.Numara = V.GuvenlikCihaziNumara 
-    JOIN AKILLI_EV E ON V.AkilliEvNumara = E.Numara ORDER BY O.Tarih DESC
+    JOIN AKILLI_EV E ON V.AkilliEvNumara = E.Numara
+    ORDER BY O.Tarih DESC
     """
-    st.dataframe(pd.read_sql(q1, conn), use_container_width=True)
+    try:
+        st.dataframe(pd.read_sql(q1, conn), use_container_width=True)
+    except:
+        st.info("Veri yok.")
 
     st.markdown("---")
-    st.markdown('<div class="report-card">📊 <b>RAPOR 2: Alarm Analizi</b></div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-card">📊 <b>RAPOR 2: Alarm ve Tetikleyici Olay Analizi</b></div>', unsafe_allow_html=True)
     q2 = """
-    SELECT A.Numara AS AlarmID, A.Durum, O.Turu AS Tetikleyen, O.Tarih
-    FROM ALARM A JOIN TETIKLER T ON A.Numara = T.AlarmNumara
+    SELECT A.Numara AS AlarmID, A.Durum, O.Turu AS Tetikleyen_Olay, O.Tarih
+    FROM ALARM A
+    JOIN TETIKLER T ON A.Numara = T.AlarmNumara
     JOIN OLAY O ON T.OlayNumara = O.Numara
     """
-    st.dataframe(pd.read_sql(q2, conn), use_container_width=True)
+    try:
+        st.dataframe(pd.read_sql(q2, conn), use_container_width=True)
+    except:
+        st.info("Veri yok.")
 
     st.markdown("---")
-    st.markdown('<div class="report-card">🏠 <b>RAPOR 3: Ev Envanteri</b></div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-card">🏠 <b>RAPOR 3: Ev Başına Cihaz İstatistiği</b></div>', unsafe_allow_html=True)
     q3 = """
-    SELECT E.Adres, COUNT(V.GuvenlikCihaziNumara) AS Cihaz_Sayisi 
-    FROM AKILLI_EV E LEFT JOIN VARDIR V ON E.Numara = V.AkilliEvNumara
+    SELECT E.Adres, COUNT(V.GuvenlikCihaziNumara) AS Toplam_Cihaz 
+    FROM AKILLI_EV E 
+    LEFT JOIN VARDIR V ON E.Numara = V.AkilliEvNumara
     GROUP BY E.Numara, E.Adres
     """
-    st.dataframe(pd.read_sql(q3, conn), use_container_width=True)
-
- st.markdown("---")
+    try:
+        st.dataframe(pd.read_sql(q3, conn), use_container_width=True)
+    except:
+        st.info("Veri yok.")
+        
+    st.markdown("---")
     st.markdown('<div class="report-card">🚨 <b>RAPOR 4: Aktif Alarmların Konumları</b></div>', unsafe_allow_html=True)
-    # DÜZELTME: Durum sorgusunu genişlettik (Açık, AÇIK veya Aktif)
     q4 = """
-    SELECT A.Numara AS AlarmID, E.Adres, E.EvSahibi 
-    FROM ALARM A 
+    SELECT A.Numara AS Alarm_ID, O.Turu AS Sebep, E.Adres, E.EvSahibi 
+    FROM ALARM A
     JOIN TETIKLER T ON A.Numara = T.AlarmNumara
     JOIN OLAY O ON T.OlayNumara = O.Numara
     JOIN KAYDEDER K ON O.Numara = K.OlayNumara
@@ -599,31 +645,43 @@ elif menu == "📈 Analitik Raporlar":
         st.dataframe(pd.read_sql(q4, conn), use_container_width=True)
     except:
         st.info("Veri yok.")
-        
+
     st.markdown("---")
-    st.markdown('<div class="report-card">📈 <b>RAPOR 5: İstatistikler</b></div>', unsafe_allow_html=True)
-    q5 = """SELECT C.Turu, COUNT(O.Numara) as OlaySayisi FROM GUVENLIK_CIHAZI C 
-            JOIN KAYDEDER K ON C.Numara = K.GuvenlikCihaziNumara 
-            JOIN OLAY O ON K.OlayNumara = O.Numara GROUP BY C.Turu"""
-    st.dataframe(pd.read_sql(q5, conn), use_container_width=True)
+    st.markdown('<div class="report-card">📈 <b>RAPOR 5: Cihaz Türü İstatistikleri</b></div>', unsafe_allow_html=True)
+    q5 = """
+    SELECT C.Turu, COUNT(O.Numara) AS Toplam_Olay 
+    FROM GUVENLIK_CIHAZI C
+    JOIN KAYDEDER K ON C.Numara = K.GuvenlikCihaziNumara
+    JOIN OLAY O ON K.OlayNumara = O.Numara
+    GROUP BY C.Turu
+    """
+    try:
+        st.dataframe(pd.read_sql(q5, conn), use_container_width=True)
+    except:
+        st.info("Veri yok.")
 
 # =============================================================================
 # MODÜL 6: KAYITLAR
 # =============================================================================
 elif menu == "📂 Veritabanı Kayıtları":
     st.title("📂 Veritabanı Müfettişi")
+    
     tables = ["AKILLI_EV", "KULLANICI", "KULLANICI_EPOSTA", "GUVENLIK_CIHAZI", "VARDIR", "OLAY", "KAYDEDER", "ALARM", "TETIKLER"]
-    sel = st.selectbox("Tablo Seç", tables)
+    sel_tab = st.selectbox("İncelemek İstediğiniz Tabloyu Seçin:", tables)
+    
     try:
-        df = pd.read_sql(f"SELECT * FROM {sel}", conn)
-        st.markdown(f"### 📋 {sel} ({len(df)})")
-        s_raw = st.text_input("🔍 Ara")
-        if s_raw:
-            mask = df.astype(str).apply(lambda x: x.str.contains(s_raw, case=False, na=False)).any(axis=1)
+        df = pd.read_sql(f"SELECT * FROM {sel_tab}", conn)
+        st.markdown(f"### 📋 {sel_tab} ({len(df)} Kayıt)")
+        
+        # Bu sayfaya da arama koyalım tam olsun
+        search_raw = st.text_input("🔍 Tablo İçinde Ara")
+        if search_raw and not df.empty:
+            # Tüm sütunlarda arama yapma
+            mask = df.astype(str).apply(lambda x: x.str.contains(search_raw, case=False, na=False)).any(axis=1)
             df = df[mask]
+            
         st.dataframe(df, use_container_width=True)
     except:
-        st.error("Hata")
+        st.error("Tablo okunamadı.")
 
 conn.close()
-
