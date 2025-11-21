@@ -581,20 +581,25 @@ elif menu == "📈 Analitik Raporlar":
     """
     st.dataframe(pd.read_sql(q3, conn), use_container_width=True)
 
-    st.markdown("---")
-    st.markdown('<div class="report-card">🚨 <b>RAPOR 4: Aktif Alarmlar</b></div>', unsafe_allow_html=True)
+ st.markdown("---")
+    st.markdown('<div class="report-card">🚨 <b>RAPOR 4: Aktif Alarmların Konumları</b></div>', unsafe_allow_html=True)
+    # DÜZELTME: Durum sorgusunu genişlettik (Açık, AÇIK veya Aktif)
     q4 = """
     SELECT A.Numara AS AlarmID, E.Adres, E.EvSahibi 
-    FROM ALARM A JOIN TETIKLER T ON A.Numara = T.AlarmNumara
+    FROM ALARM A 
+    JOIN TETIKLER T ON A.Numara = T.AlarmNumara
     JOIN OLAY O ON T.OlayNumara = O.Numara
     JOIN KAYDEDER K ON O.Numara = K.OlayNumara
     JOIN GUVENLIK_CIHAZI C ON K.GuvenlikCihaziNumara = C.Numara
     JOIN VARDIR V ON C.Numara = V.GuvenlikCihaziNumara
     JOIN AKILLI_EV E ON V.AkilliEvNumara = E.Numara
-    WHERE A.Durum = 'AÇIK'
+    WHERE A.Durum IN ('Açık', 'AÇIK', 'Aktif')
     """
-    st.dataframe(pd.read_sql(q4, conn), use_container_width=True)
-    
+    try:
+        st.dataframe(pd.read_sql(q4, conn), use_container_width=True)
+    except:
+        st.info("Veri yok.")
+        
     st.markdown("---")
     st.markdown('<div class="report-card">📈 <b>RAPOR 5: İstatistikler</b></div>', unsafe_allow_html=True)
     q5 = """SELECT C.Turu, COUNT(O.Numara) as OlaySayisi FROM GUVENLIK_CIHAZI C 
@@ -621,3 +626,4 @@ elif menu == "📂 Veritabanı Kayıtları":
         st.error("Hata")
 
 conn.close()
+
